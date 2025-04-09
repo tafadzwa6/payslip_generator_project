@@ -1,0 +1,6 @@
+Employee ID: A001
+Name: Lloyd Donel
+Basic Pay: 250
+Allowances: 300
+Deductions: 150
+Net Salary: 400

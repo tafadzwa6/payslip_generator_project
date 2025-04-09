@@ -1,0 +1,6 @@
+Employee ID: A002
+Name: Tafadzwa
+Basic Pay: 2800
+Allowances: 500
+Deductions: 200
+Net Salary: 3100

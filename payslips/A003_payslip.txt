@@ -1,0 +1,6 @@
+Employee ID: A003
+Name: Kudzai
+Basic Pay: 2700
+Allowances: 450
+Deductions: 180
+Net Salary: 2970

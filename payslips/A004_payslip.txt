@@ -1,0 +1,6 @@
+Employee ID: A004
+Name: Ivy
+Basic Pay: 2900
+Allowances: 550
+Deductions: 320
+Net Salary: 3130
