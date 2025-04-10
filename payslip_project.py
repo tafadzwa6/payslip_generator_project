@@ -10,66 +10,56 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
+import time
 
 # Load environment variables from .env file
 load_dotenv()
 
-# 🔥 PUT YOUR EMAIL HERE in the .env file as EMAIL_USER
-SENDER_EMAIL = os.getenv("munhuharaswit@gmail.com")  # e.g., 'your_email@gmail.com'
+SENDER_EMAIL = ""
+SENDER_PASSWORD = ""  
 
-# 🔥 PUT YOUR APP PASSWORD HERE in the .env file as EMAIL_PASS
-SENDER_PASSWORD = os.getenv("0775774419mom")  # e.g., 'your_app_password'
+if not SENDER_EMAIL or not SENDER_PASSWORD:
+    raise ValueError("Missing EMAIL_USER or EMAIL_PASS in .env file.")
 
-SMTP_SERVER = "smtp.gmail.com"  # SMTP server for Gmail (you can change this if using a different email service)
-PAYSILP_DIR = "payslips"  # Folder where the payslips will be saved
+SMTP_SERVER = "smtp.gmail.com"
+PAYSILP_DIR = "payslips"
 
 # Load employee data from Excel
 def load_employees(file_path):
     try:
-        data = pd.read_excel(file_path)  # Load the Excel file
-        data.columns = data.columns.str.strip().str.upper()  # Normalize column names (Remove spaces and convert to uppercase)
+        data = pd.read_excel(file_path)
+        data.columns = data.columns.str.strip().str.upper()
         return data
     except Exception as e:
         print(f"❌ Error reading Excel: {e}")
         return None
 
-# Generate a beautiful and professional payslip PDF file
+# Generate payslip PDF
 def generate_payslip(row):
     if not os.path.exists(PAYSILP_DIR):
         os.makedirs(PAYSILP_DIR)
 
-    # 🔥 The file will be saved in the 'payslips' directory with the employee's ID
     filename = f"{PAYSILP_DIR}/{row['EMPLOYEE ID']}_payslip.pdf"
-    
-    # 🔥 Calculation of net salary (Basic Pay + Allowance - Deductions)
     net_salary = row['BASIC PAY'] + row['ALLOWANCE'] - row['DEDUCTIONS']
 
-    # Create a PDF document for the payslip
     c = canvas.Canvas(filename, pagesize=letter)
-    
-    # Page border
-    c.setStrokeColor(colors.black)
-    c.setLineWidth(2)
-    c.rect(10, 10, 580, 770)  # Outer border for the page
 
-    # Header Gradient Background
-    c.setFillColor(colors.HexColor("#4CAF50"))
-    c.rect(10, 730, 580, 40, fill=1)  # Header background
-
-    # Title in the Header
-    c.setFont("Helvetica-Bold", 18)
+    # Header with modern dark blue
+    c.setFillColor(colors.HexColor("#1D3557"))
+    c.rect(0, 750, 600, 50, fill=1)  # Header background
+    c.setFont("Helvetica-Bold", 22)
     c.setFillColor(colors.white)
-    c.drawString(20, 745, "PAYSLIP")  # Title
+    c.drawString(40, 770, "TM MOTORS")
 
-    # Employee Information Section
+    # Employee Information
     c.setFont("Helvetica-Bold", 12)
-    c.setFillColor(colors.black)
-    c.drawString(20, 700, f"Employee ID: {row['EMPLOYEE ID']}")
+    c.setFillColor(colors.HexColor("#333333"))  # Dark Grey Text
+    c.drawString(40, 720, f"Employee ID: {row['EMPLOYEE ID']}")
     c.setFont("Helvetica", 12)
-    c.drawString(150, 700, f"Name: {row['NAME']}")
-    c.drawString(20, 680, f"Email: {row['EMAIL']}")
+    c.drawString(40, 705, f"Name: {row['NAME']}")
+    c.drawString(40, 690, f"Email: {row['EMAIL']}")
 
-    # Create Salary Breakdown Table
+    # Salary Table with soft teal header and light grey borders
     data = [
         ['Description', 'Amount'],
         ['Basic Pay', f"${row['BASIC PAY']:,.2f}"],
@@ -79,46 +69,43 @@ def generate_payslip(row):
     ]
     
     table = Table(data, colWidths=[300, 150])
-    
-    # Table styling
     table.setStyle(TableStyle([ 
-        ('TEXTCOLOR', (0, 0), (1, 0), colors.white),  # White header
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4CAF50")),  # Header background color
+        ('TEXTCOLOR', (0, 0), (1, 0), colors.white),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#457B9D")),  # Soft teal header
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Table grid (lines between cells)
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E4E4E4")),  # Light grey borders
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ('TOPPADDING', (0, 0), (-1, 0), 12)
     ]))
-    
-    # Table position on the page
-    table.wrapOn(c, 40, 620)
-    table.drawOn(c, 40, 600)
 
-    # Footer with contact information
+    table.wrapOn(c, 40, 600)
+    table.drawOn(c, 40, 580)
+
+    # Footer with a muted orange color
     c.setFont("Helvetica", 10)
-    c.setFillColor(colors.HexColor("#4CAF50"))
-    c.drawString(20, 30, "For queries, contact Payroll Team at payroll@tmmotors.com")
+    c.setFillColor(colors.HexColor("#F1A208"))  # Muted Orange Footer
+    c.drawString(40, 30, "Thank you for your hard work! Wishing you a great month ahead.")
 
-    # Save the PDF
     c.save()
-
     return filename
 
-# Send payslip via email
+# Send email with attachment
 def send_payslip_email(row, payslip_path):
+    if not os.path.exists(payslip_path):
+        print(f"❌ Payslip file not found for {row['NAME']}. Skipping email.")
+        return
+
     try:
-        # Creating the email message
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
-        msg['To'] = row['EMAIL']  # 🔥 This is where the recipient's email is placed (Excel column 'EMAIL')
+        msg['To'] = row['EMAIL']
         msg['Subject'] = "Your Monthly Payslip"
 
         msg.attach(MIMEText("Hi there,\n\nPlease find your payslip attached.\n\nRegards,\nPayroll Team", 'plain'))
 
-        # Attaching the payslip PDF file
         with open(payslip_path, 'rb') as f:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(f.read())
@@ -126,10 +113,12 @@ def send_payslip_email(row, payslip_path):
             part.add_header('Content-Disposition', f'attachment; filename={os.path.basename(payslip_path)}')
             msg.attach(part)
 
-        # Sending the email via SMTP server
+        # Debug: Print email details
+        print(f"Attempting to send email to {row['EMAIL']}...")
+
         server = smtplib.SMTP(SMTP_SERVER, 587)
-        server.starttls()  # Secure the connection
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)  # 🔥 This is where you log in with your email and password
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.send_message(msg)
         server.quit()
 
@@ -137,18 +126,28 @@ def send_payslip_email(row, payslip_path):
     except Exception as e:
         print(f"❌ Failed to send to {row['NAME']}: {e}")
 
-# Main process
+# Main logic
 def main():
-    # 🔥 Specify the path to your Excel file here
-    data = load_employees("employees2.xlsx")  # Make sure 'employees2.xlsx' is in the correct directory or provide full path
+    data = load_employees("employees2.xlsx")
     if data is None:
         return
 
-    # Iterating through each row in the Excel file and generating/sending payslips
     for _, row in data.iterrows():
-        payslip = generate_payslip(row)  # Generate the payslip
-        send_payslip_email(row, payslip)  # Send the payslip via email
+        # Update deductions manually
+        if row['EMPLOYEE ID'] == 'A001':
+            row['DEDUCTIONS'] = 150
+        elif row['EMPLOYEE ID'] == 'A002':
+            row['DEDUCTIONS'] = 200
+        elif row['EMPLOYEE ID'] == 'A003':
+            row['DEDUCTIONS'] = 180
+        elif row['EMPLOYEE ID'] == 'A004':
+            row['DEDUCTIONS'] = 320
+
+        payslip_path = generate_payslip(row)
+        send_payslip_email(row, payslip_path)
+
+        # Add a delay of 1 second between emails
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()
-
